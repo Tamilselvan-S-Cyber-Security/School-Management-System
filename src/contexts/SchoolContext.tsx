@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { firebaseService } from '../services/firebaseService';
 import { toast } from 'sonner';
@@ -71,9 +70,10 @@ export const SchoolProvider = ({ children }: { children: ReactNode }) => {
     try {
       const firebaseStudents = await firebaseService.getAllStudents();
       setStudents(firebaseStudents);
+      console.log('Students loaded successfully:', firebaseStudents.length);
     } catch (error) {
-      console.error('Error loading students from Firebase:', error);
-      toast.error('Failed to load students from database');
+      console.error('Error loading students:', error);
+      toast.error('Failed to load students. Using offline mode.');
     } finally {
       setLoading(false);
     }
@@ -82,6 +82,7 @@ export const SchoolProvider = ({ children }: { children: ReactNode }) => {
   const addStudent = async (studentData: Omit<Student, 'id' | 'dateAdded'>) => {
     setLoading(true);
     try {
+      console.log('Adding student:', studentData);
       const studentId = await firebaseService.addStudent(studentData);
       const newStudent: Student = {
         ...studentData,
@@ -89,10 +90,11 @@ export const SchoolProvider = ({ children }: { children: ReactNode }) => {
         dateAdded: new Date(),
       };
       setStudents(prev => [...prev, newStudent]);
-      toast.success('Student added to Firebase database');
+      toast.success('Student added successfully!');
+      console.log('Student added with ID:', studentId);
     } catch (error) {
-      console.error('Error adding student to Firebase:', error);
-      toast.error('Failed to add student to database');
+      console.error('Error adding student:', error);
+      toast.error('Failed to add student. Please try again.');
       throw error;
     } finally {
       setLoading(false);
@@ -106,10 +108,10 @@ export const SchoolProvider = ({ children }: { children: ReactNode }) => {
       setStudents(prev => prev.map(student => 
         student.id === id ? { ...student, ...studentData } : student
       ));
-      toast.success('Student updated in Firebase database');
+      toast.success('Student updated successfully!');
     } catch (error) {
-      console.error('Error updating student in Firebase:', error);
-      toast.error('Failed to update student in database');
+      console.error('Error updating student:', error);
+      toast.error('Failed to update student. Please try again.');
       throw error;
     } finally {
       setLoading(false);
@@ -121,10 +123,10 @@ export const SchoolProvider = ({ children }: { children: ReactNode }) => {
     try {
       await firebaseService.deleteStudent(id);
       setStudents(prev => prev.filter(student => student.id !== id));
-      toast.success('Student deleted from Firebase database');
+      toast.success('Student deleted successfully!');
     } catch (error) {
-      console.error('Error deleting student from Firebase:', error);
-      toast.error('Failed to delete student from database');
+      console.error('Error deleting student:', error);
+      toast.error('Failed to delete student. Please try again.');
       throw error;
     } finally {
       setLoading(false);
@@ -172,10 +174,10 @@ export const SchoolProvider = ({ children }: { children: ReactNode }) => {
       }
 
       await refreshStudents();
-      toast.success('Sample students added to Firebase database');
+      toast.success(`${sampleStudents.length} sample students added successfully!`);
     } catch (error) {
-      console.error('Error seeding Firebase database:', error);
-      toast.error('Failed to seed Firebase database');
+      console.error('Error seeding database:', error);
+      toast.error('Failed to seed database. Please try again.');
     } finally {
       setLoading(false);
     }

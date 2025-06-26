@@ -1,6 +1,6 @@
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 
@@ -15,7 +15,16 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
+
+// Initialize Firestore with proper settings
 export const db = getFirestore(app);
+
+// For development, you might want to use the emulator
+// Uncomment the line below if you're using the Firestore emulator
+// if (process.env.NODE_ENV === 'development') {
+//   connectFirestoreEmulator(db, 'localhost', 8080);
+// }
+
 export const auth = getAuth(app);
 
 // Initialize Firebase Cloud Messaging
@@ -38,7 +47,7 @@ export const requestNotificationPermission = async () => {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       const token = await getToken(messaging, {
-        vapidKey: 'your-vapid-key' // You'll need to add this from Firebase Console
+        vapidKey: 'BKxvxQ9YrZ8QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9QqZ9Q' // Replace with your actual VAPID key
       });
       console.log('FCM Token:', token);
       return token;

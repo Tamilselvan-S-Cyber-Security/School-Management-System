@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -41,6 +40,8 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
   };
 
   const handleAddStudent = async () => {
+    console.log('Add student button clicked');
+    
     if (!newStudent.name.trim() || !newStudent.class || !newStudent.parentPhone.trim()) {
       toast.error('Please fill in all required fields');
       return;
@@ -54,6 +55,13 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
     const formattedPhone = formatPhoneNumber(newStudent.parentPhone);
 
     try {
+      console.log('Attempting to add student:', {
+        name: newStudent.name,
+        class: newStudent.class,
+        parentPhone: formattedPhone,
+        parentName: newStudent.parentName || `Parent of ${newStudent.name}`
+      });
+
       await addStudent({
         name: newStudent.name,
         class: newStudent.class,
@@ -61,10 +69,12 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
         parentName: newStudent.parentName || `Parent of ${newStudent.name}`
       });
 
+      console.log('Student added successfully, resetting form');
       setNewStudent({ name: '', class: '', parentPhone: '', parentName: '' });
       onCloseAddForm();
     } catch (error) {
-      // Error already handled in context
+      console.error('Failed to add student:', error);
+      // Error message already shown by context
     }
   };
 
@@ -119,7 +129,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
           <DialogHeader>
             <DialogTitle>Add New Student</DialogTitle>
             <DialogDescription>
-              Enter student details and parent contact information (stored in Firebase database)
+              Enter student details and parent contact information
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -130,11 +140,16 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
                 value={newStudent.name}
                 onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
                 placeholder="Enter student's full name"
+                disabled={loading}
               />
             </div>
             <div>
               <Label htmlFor="student-class">Class *</Label>
-              <Select value={newStudent.class} onValueChange={(value) => setNewStudent({ ...newStudent, class: value })}>
+              <Select 
+                value={newStudent.class} 
+                onValueChange={(value) => setNewStudent({ ...newStudent, class: value })}
+                disabled={loading}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select class" />
                 </SelectTrigger>
@@ -155,6 +170,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
                 onChange={(e) => setNewStudent({ ...newStudent, parentPhone: e.target.value })}
                 placeholder="Enter 10-digit mobile number (e.g., 9876543210)"
                 maxLength={13}
+                disabled={loading}
               />
               <p className="text-xs text-muted-foreground mt-1">
                 Indian mobile numbers only (starts with 6-9, +91 will be added automatically)
@@ -167,6 +183,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
                 value={newStudent.parentName}
                 onChange={(e) => setNewStudent({ ...newStudent, parentName: e.target.value })}
                 placeholder="Enter parent's name (optional)"
+                disabled={loading}
               />
             </div>
             <div className="flex gap-2">
@@ -174,7 +191,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Adding to Firebase...
+                    Adding Student...
                   </>
                 ) : (
                   <>
@@ -183,7 +200,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
                   </>
                 )}
               </Button>
-              <Button variant="outline" onClick={onCloseAddForm} className="flex-1">
+              <Button variant="outline" onClick={onCloseAddForm} className="flex-1" disabled={loading}>
                 Cancel
               </Button>
             </div>
@@ -261,9 +278,9 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Student Records (Firebase Database)</CardTitle>
+              <CardTitle>Student Records</CardTitle>
               <CardDescription>
-                Manage student information stored in Firebase with Indian mobile numbers (+91)
+                Manage student information with automatic backup to Firebase/LocalStorage
               </CardDescription>
             </div>
             <div className="w-64">
@@ -287,7 +304,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
           {loading && (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <span>Loading from Firebase...</span>
+              <span>Loading students...</span>
             </div>
           )}
           
@@ -347,7 +364,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
             </Table>
             {displayStudents.length === 0 && !loading && (
               <div className="text-center py-8 text-muted-foreground">
-                No students found in Firebase database
+                No students found. Click "Add Student" to get started.
               </div>
             )}
           </div>
