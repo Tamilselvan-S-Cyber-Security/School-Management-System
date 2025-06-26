@@ -3,30 +3,26 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
-import ParcelsPage from "./pages/ParcelsPage";
-import ParcelsDetailsPage from "./pages/ParcelsDetailsPage";
-import CropsPage from "./pages/CropsPage";
-import InventoryPage from "./pages/InventoryPage";
-import FinancePage from "./pages/FinancePage";
-import StatsPage from "./pages/StatsPage";
+import StudentsPage from "./pages/StudentsPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import ClassesPage from "./pages/ClassesPage";
+import ReportsPage from "./pages/ReportsPage";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
-import { CRMProvider } from "./contexts/CRMContext";
-import { StatisticsProvider } from "./contexts/StatisticsContext";
+import { SchoolProvider } from "./contexts/SchoolContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 import { AppSettingsProvider } from "./contexts/AppSettingsContext";
 import { trackPageView } from "./utils/analytics";
 
-// Define routes configuration with redirects
+// Define routes configuration for school management
 const routes = [
   { path: "/", element: <Index /> },
-  { path: "/parcelles", element: <ParcelsPage /> },
-  { path: "/parcelles/:id", element: <ParcelsDetailsPage /> },
-  { path: "/cultures", element: <CropsPage /> },
-  { path: "/inventaire", element: <InventoryPage /> },
-  { path: "/finances", element: <FinancePage /> },
-  { path: "/statistiques", element: <StatisticsProvider><StatsPage /></StatisticsProvider> },
-  { path: "/rapports", element: <Navigate to="/statistiques" replace /> },
-  { path: "/parametres", element: <Navigate to="/" replace /> },
+  { path: "/students", element: <StudentsPage /> },
+  { path: "/notifications", element: <NotificationsPage /> },
+  { path: "/classes", element: <ClassesPage /> },
+  { path: "/reports", element: <ReportsPage /> },
+  { path: "/settings", element: <SettingsPage /> },
   { path: "/dashboard", element: <Navigate to="/" replace /> },
   { path: "*", element: <NotFound /> }
 ];
@@ -63,22 +59,24 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AppSettingsProvider>
-        <CRMProvider>
-          <BrowserRouter>
-            <TooltipProvider>
-              <RouterChangeHandler />
-              <Routes>
-                {routes.map((route) => (
-                  <Route 
-                    key={route.path} 
-                    path={route.path} 
-                    element={route.element} 
-                  />
-                ))}
-              </Routes>
-            </TooltipProvider>
-          </BrowserRouter>
-        </CRMProvider>
+        <SchoolProvider>
+          <NotificationProvider>
+            <BrowserRouter>
+              <TooltipProvider>
+                <RouterChangeHandler />
+                <Routes>
+                  {routes.map((route) => (
+                    <Route 
+                      key={route.path} 
+                      path={route.path} 
+                      element={route.element} 
+                    />
+                  ))}
+                </Routes>
+              </TooltipProvider>
+            </BrowserRouter>
+          </NotificationProvider>
+        </SchoolProvider>
       </AppSettingsProvider>
     </QueryClientProvider>
   );
