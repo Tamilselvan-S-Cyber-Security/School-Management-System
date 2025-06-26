@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -7,98 +7,118 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Badge } from './ui/badge';
-import { Send, Clock, CheckCircle, XCircle, Users, School } from 'lucide-react';
-import { useNotification } from '../contexts/NotificationContext';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
+import { Send, MessageSquare, Users, User, Clock, CheckCircle } from 'lucide-react';
 import { useSchool } from '../contexts/SchoolContext';
+import { messagingService, Message } from '../services/messagingService';
+import { requestNotificationPermission } from '../config/firebase';
 import { toast } from 'sonner';
 
 const NotificationCenter = () => {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
-  const [targetClass, setTargetClass] = useState('');
-  const [targetAll, setTargetAll] = useState(true);
+  const [targetType, setTargetType] = useState<'all' | 'class' | 'individual'>('all');
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState('');
+  const [senderName, setSenderName] = useState('School Admin');
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const { sendNotification, notifications } = useNotification();
-  const { classes, students, getStudentsByClass } = useSchool();
+  const { students, classes } = useSchool();
 
-  // Quick message templates
-  const quickMessages = [
-    { title: 'Holiday Notice', body: 'School will remain closed tomorrow due to public holiday.' },
-    { title: 'Fee Reminder', body: 'Kindly pay the pending fees by the end of this month.' },
-    { title: 'Parent Meeting', body: 'Parent-teacher meeting scheduled for this Saturday at 10 AM.' },
-    { title: 'Exam Schedule', body: 'Monthly examination will start from next Monday. Please prepare accordingly.' }
-  ];
+  useEffect(() => {
+    loadMessages();
+    setupNotifications();
+  }, []);
 
-  const useQuickMessage = (quickMsg: { title: string; body: string }) => {
-    setTitle(quickMsg.title);
-    setMessage(quickMsg.body);
+  const setupNotifications = async () => {
+    try {
+      await requestNotificationPermission();
+    } catch (error) {
+      console.error('Error setting up notifications:', error);
+    }
   };
 
-  const handleSendNotification = async () => {
-    if (!title.trim() || !message.trim()) {
-      toast.error('Please fill in both title and message');
-      return;
-    }
-
-    let recipientCount = 0;
-    let targetDescription = '';
-
-    if (targetAll) {
-      recipientCount = students.length;
-      targetDescription = 'All Students';
-    } else if (targetClass) {
-      const classStudents = getStudentsByClass(targetClass);
-      recipientCount = classStudents.length;
-      targetDescription = targetClass;
-    } else {
-      toast.error('Please select a target audience');
-      return;
-    }
-
-    if (recipientCount === 0) {
-      toast.error('No recipients found for the selected target');
-      return;
-    }
-
+  const loadMessages = async () => {
     try {
-      await sendNotification({
-        title,
-        body: message,
-        targetClass: targetAll ? undefined : targetClass,
-        targetAll,
-        recipientCount
-      });
+      const allMessages = await messagingService.getAllMessages();
+      setMessages(allMessages);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+      toast.error('Failed to load message history');
+    }
+  };
 
+  const handleSendMessage = async () => {
+    if (!title.trim() || !message.trim()) {
+      toast.error('Please fill in title and message');
+      return;
+    }
+
+    if (targetType === 'class' && !selectedClass) {
+      toast.error('Please select a class');
+      return;
+    }
+
+    if (targetType === 'individual' && !selectedStudent) {
+      toast.error('Please select a student');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let messageId: string;
+
+      switch (targetType) {
+        case 'all':
+          messageId = await messagingService.sendToAll(title, message, senderName);
+          toast.success('Message sent to all parents successfully');
+          break;
+        case 'class':
+          messageId = await messagingService.sendToClass(title, message, selectedClass, senderName);
+          toast.success(`Message sent to ${selectedClass} parents successfully`);
+          break;
+        case 'individual':
+          messageId = await messagingService.sendToIndividual(title, message, selectedStudent, senderName);
+          const student = students.find(s => s.id === selectedStudent);
+          toast.success(`Message sent to ${student?.name}'s parent successfully`);
+          break;
+      }
+
+      // Reset form
       setTitle('');
       setMessage('');
-      setTargetClass('');
-      setTargetAll(true);
-      
-      toast.success(`Message sent to ${recipientCount} parents via WhatsApp/SMS (+91 numbers)`);
+      setTargetType('all');
+      setSelectedClass('');
+      setSelectedStudent('');
+
+      // Reload messages
+      await loadMessages();
     } catch (error) {
-      toast.error('Failed to send notification');
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'sent':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'pending':
-        return <Clock className="h-4 w-4 text-yellow-500" />;
-      case 'failed':
-        return <XCircle className="h-4 w-4 text-red-500" />;
+  const getTargetDescription = (msg: Message) => {
+    switch (msg.targetType) {
+      case 'all':
+        return 'All Parents';
+      case 'class':
+        return `Class: ${msg.targetClass}`;
+      case 'individual':
+        const student = students.find(s => s.id === msg.targetStudentId);
+        return `Student: ${student?.name || 'Unknown'}`;
       default:
-        return null;
+        return 'Unknown';
     }
-  };
-
-  const getClassStudentCount = (className: string) => {
-    return getStudentsByClass(className).length;
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="space-y-6">
+      {/* Send New Message */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -106,162 +126,162 @@ const NotificationCenter = () => {
             Send Notification
           </CardTitle>
           <CardDescription>
-            Send messages to parents via SMS/WhatsApp (Indian mobile numbers +91)
+            Send real-time messages to parents via Firebase Cloud Messaging
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Quick Message Templates */}
-          <div>
-            <Label>Quick Templates</Label>
-            <div className="grid grid-cols-2 gap-2 mt-2">
-              {quickMessages.map((quickMsg, index) => (
-                <Button
-                  key={index}
-                  variant="outline"
-                  size="sm"
-                  onClick={() => useQuickMessage(quickMsg)}
-                  className="text-xs h-auto py-2"
-                >
-                  {quickMsg.title}
-                </Button>
-              ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="sender-name">Sender Name</Label>
+              <Input
+                id="sender-name"
+                value={senderName}
+                onChange={(e) => setSenderName(e.target.value)}
+                placeholder="Enter sender name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="target-type">Send To</Label>
+              <Select value={targetType} onValueChange={(value: 'all' | 'class' | 'individual') => setTargetType(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Parents</SelectItem>
+                  <SelectItem value="class">Specific Class</SelectItem>
+                  <SelectItem value="individual">Individual Parent</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
+          {targetType === 'class' && (
+            <div>
+              <Label htmlFor="class-select">Select Class</Label>
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose class" />
+                </SelectTrigger>
+                <SelectContent>
+                  {classes.map((classInfo) => (
+                    <SelectItem key={classInfo.id} value={classInfo.name}>
+                      {classInfo.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          {targetType === 'individual' && (
+            <div>
+              <Label htmlFor="student-select">Select Student</Label>
+              <Select value={selectedStudent} onValueChange={setSelectedStudent}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose student" />
+                </SelectTrigger>
+                <SelectContent>
+                  {students.map((student) => (
+                    <SelectItem key={student.id} value={student.id}>
+                      {student.name} ({student.class})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <div>
-            <Label htmlFor="title">Message Title</Label>
+            <Label htmlFor="message-title">Message Title</Label>
             <Input
-              id="title"
+              id="message-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter notification title"
+              placeholder="Enter message title"
             />
           </div>
 
           <div>
-            <Label htmlFor="message">Message Content</Label>
+            <Label htmlFor="message-body">Message</Label>
             <Textarea
-              id="message"
+              id="message-body"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Enter your message here..."
               rows={4}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Messages will be sent to Indian mobile numbers (+91 prefix)
-            </p>
           </div>
 
-          <div>
-            <Label>Target Audience</Label>
-            <div className="space-y-3 mt-2">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="all-students"
-                  name="target"
-                  checked={targetAll}
-                  onChange={(e) => {
-                    setTargetAll(e.target.checked);
-                    if (e.target.checked) setTargetClass('');
-                  }}
-                />
-                <Label htmlFor="all-students" className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Send to all students ({students.length} parents)
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="specific-class"
-                  name="target"
-                  checked={!targetAll}
-                  onChange={(e) => setTargetAll(!e.target.checked)}
-                />
-                <Label htmlFor="specific-class" className="flex items-center gap-2">
-                  <School className="h-4 w-4" />
-                  Send to specific class
-                </Label>
-              </div>
-            </div>
-          </div>
-
-          {!targetAll && (
-            <div>
-              <Label htmlFor="class-select">Select Class</Label>
-              <Select value={targetClass} onValueChange={setTargetClass}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((classInfo) => (
-                    <SelectItem key={classInfo.id} value={classInfo.name}>
-                      <div className="flex items-center justify-between w-full">
-                        <span>{classInfo.name}</span>
-                        <Badge variant="secondary" className="ml-2">
-                          {getClassStudentCount(classInfo.name)} students
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {targetClass && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  Will send to {getClassStudentCount(targetClass)} parents in {targetClass}
-                </p>
-              )}
-            </div>
-          )}
-
-          <Button onClick={handleSendNotification} className="w-full" size="lg">
+          <Button onClick={handleSendMessage} disabled={loading} className="w-full">
             <Send className="h-4 w-4 mr-2" />
-            Send Message
-            {targetAll ? ` to All (${students.length})` : targetClass ? ` to ${targetClass} (${getClassStudentCount(targetClass)})` : ''}
+            {loading ? 'Sending...' : 'Send Message'}
           </Button>
         </CardContent>
       </Card>
 
+      {/* Message History */}
       <Card>
         <CardHeader>
-          <CardTitle>Message History</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            Message History
+          </CardTitle>
           <CardDescription>
-            Recent notifications sent to parents (+91 mobile numbers)
+            View all sent messages and their delivery status
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4 max-h-96 overflow-y-auto">
-            {notifications.map((notification) => (
-              <div key={notification.id} className="border rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-medium">{notification.title}</h4>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {notification.body}
-                    </p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant={notification.targetAll ? "default" : "outline"}>
-                        {notification.targetAll ? 'All Students' : notification.targetClass}
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Target</TableHead>
+                  <TableHead>Sender</TableHead>
+                  <TableHead>Sent At</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {messages.map((msg) => (
+                  <TableRow key={msg.id}>
+                    <TableCell className="font-medium">
+                      <div>
+                        <div>{msg.title}</div>
+                        <div className="text-sm text-muted-foreground truncate max-w-xs">
+                          {msg.body}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {msg.targetType === 'all' && <Users className="h-4 w-4" />}
+                        {msg.targetType === 'class' && <Users className="h-4 w-4" />}
+                        {msg.targetType === 'individual' && <User className="h-4 w-4" />}
+                        {getTargetDescription(msg)}
+                      </div>
+                    </TableCell>
+                    <TableCell>{msg.senderName}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        {msg.sentAt.toLocaleDateString()} {msg.sentAt.toLocaleTimeString()}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={msg.status === 'sent' ? 'default' : msg.status === 'pending' ? 'secondary' : 'destructive'}>
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        {msg.status}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        {notification.recipientCount} recipients (+91)
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {getStatusIcon(notification.status)}
-                    <span className="text-xs text-muted-foreground">
-                      {notification.sentAt.toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-            {notifications.length === 0 && (
-              <p className="text-center text-muted-foreground py-8">
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            {messages.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
                 No messages sent yet
-              </p>
+              </div>
             )}
           </div>
         </CardContent>
