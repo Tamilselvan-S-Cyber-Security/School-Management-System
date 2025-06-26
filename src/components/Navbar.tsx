@@ -3,19 +3,17 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, 
-  MapPin, 
-  Sprout, 
-  Package, 
-  Wallet, 
+  Users, 
+  Bell, 
+  School, 
   BarChart2, 
+  Settings, 
   Menu, 
   X,
   Sun,
   Moon,
   ChevronRight,
-  Settings,
-  Users,
-  FileText
+  GraduationCap
 } from 'lucide-react';
 
 const Navbar = () => {
@@ -53,14 +51,12 @@ const Navbar = () => {
   };
 
   const navItems = [
-    { title: 'Tableau de bord', path: '/', icon: Home },
-    { title: 'Parcelles', path: '/parcelles', icon: MapPin },
-    { title: 'Cultures', path: '/cultures', icon: Sprout },
-    { title: 'Inventaire', path: '/inventaire', icon: Package },
-    { title: 'Finances', path: '/finances', icon: Wallet },
-    { title: 'Statistiques', path: '/statistiques', icon: BarChart2 },
-    { title: 'Rapports', path: '/rapports', icon: FileText },
-    { title: 'Paramètres', path: '/parametres', icon: Settings },
+    { title: 'Dashboard', path: '/', icon: Home },
+    { title: 'Students', path: '/students', icon: Users },
+    { title: 'Notifications', path: '/notifications', icon: Bell },
+    { title: 'Classes', path: '/classes', icon: School },
+    { title: 'Reports', path: '/reports', icon: BarChart2 },
+    { title: 'Settings', path: '/settings', icon: Settings },
   ];
 
   const isActive = (path: string) => {
@@ -90,8 +86,8 @@ const Navbar = () => {
       >
         <div className="p-4 border-b border-border flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2">
-            <Sprout className="h-6 w-6 text-agri-primary" />
-            <span className="text-lg font-bold text-foreground">Agri Dom</span>
+            <GraduationCap className="h-6 w-6 text-blue-600" />
+            <span className="text-lg font-bold text-foreground">School Management</span>
           </Link>
           <button 
             onClick={toggleTheme} 
@@ -109,18 +105,18 @@ const Navbar = () => {
               to={item.path}
               className={`nav-link flex items-center space-x-3 py-3 px-4 rounded-lg transition-colors ${
                 isActive(item.path) 
-                  ? 'bg-agri-primary/10 text-agri-primary font-medium' 
+                  ? 'bg-blue-50 text-blue-700 font-medium dark:bg-blue-900/20 dark:text-blue-400' 
                   : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-foreground'
               }`}
               onClick={() => setIsOpen(false)}
             >
-              <item.icon className={`h-5 w-5 ${isActive(item.path) ? 'text-agri-primary' : ''}`} />
+              <item.icon className={`h-5 w-5 ${isActive(item.path) ? 'text-blue-700 dark:text-blue-400' : ''}`} />
               <span>{item.title}</span>
               
               {isActive(item.path) && (
                 <div className="ml-auto flex items-center">
-                  <span className="h-2 w-2 rounded-full bg-agri-primary animate-pulse-slow"></span>
-                  <ChevronRight className="h-4 w-4 text-agri-primary ml-1" />
+                  <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
+                  <ChevronRight className="h-4 w-4 text-blue-600 ml-1" />
                 </div>
               )}
             </Link>
@@ -129,12 +125,12 @@ const Navbar = () => {
 
         <div className="p-4 border-t border-border">
           <div className="flex items-center space-x-3 px-3 py-2">
-            <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
-              <span className="text-sm font-medium">AD</span>
+            <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+              <span className="text-sm font-medium text-blue-700 dark:text-blue-400">SM</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">Utilisateur</p>
-              <p className="text-xs text-muted-foreground truncate">agriculteur@example.com</p>
+              <p className="text-sm font-medium truncate">School Admin</p>
+              <p className="text-xs text-muted-foreground truncate">admin@school.edu.in</p>
             </div>
           </div>
         </div>

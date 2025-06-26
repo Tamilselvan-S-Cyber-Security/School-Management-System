@@ -29,42 +29,69 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
 
   const { students, classes, addStudent, updateStudent, deleteStudent, getStudentsByClass } = useSchool();
 
+  const validateIndianPhoneNumber = (phone: string): boolean => {
+    // Remove +91 prefix if present and any spaces/dashes
+    const cleanPhone = phone.replace(/^\+91\s?/, '').replace(/[-\s]/g, '');
+    
+    // Check if it's a valid 10-digit Indian mobile number starting with 6-9
+    const phoneRegex = /^[6-9]\d{9}$/;
+    return phoneRegex.test(cleanPhone);
+  };
+
+  const formatPhoneNumber = (phone: string): string => {
+    // Remove +91 prefix if present and any spaces/dashes
+    const cleanPhone = phone.replace(/^\+91\s?/, '').replace(/[-\s]/g, '');
+    
+    // Add +91 prefix
+    return `+91 ${cleanPhone}`;
+  };
+
   const handleAddStudent = () => {
     if (!newStudent.name.trim() || !newStudent.class || !newStudent.parentPhone.trim()) {
       toast.error('Please fill in all required fields');
       return;
     }
 
-    // Validate Indian phone number
-    const phoneRegex = /^[6-9]\d{9}$/;
-    if (!phoneRegex.test(newStudent.parentPhone)) {
-      toast.error('Please enter a valid Indian phone number');
+    if (!validateIndianPhoneNumber(newStudent.parentPhone)) {
+      toast.error('Please enter a valid Indian mobile number (10 digits starting with 6-9)');
       return;
     }
+
+    const formattedPhone = formatPhoneNumber(newStudent.parentPhone);
 
     addStudent({
       name: newStudent.name,
       class: newStudent.class,
-      parentPhone: newStudent.parentPhone,
+      parentPhone: formattedPhone,
       parentName: newStudent.parentName || `Parent of ${newStudent.name}`
     });
 
     setNewStudent({ name: '', class: '', parentPhone: '', parentName: '' });
     onCloseAddForm();
-    toast.success('Student added successfully');
+    toast.success('Student added successfully with +91 prefix');
   };
 
   const handleEditStudent = (student: any) => {
-    setEditingStudent(student);
+    setEditingStudent({
+      ...student,
+      parentPhone: student.parentPhone.replace('+91 ', '') // Remove prefix for editing
+    });
   };
 
   const handleUpdateStudent = () => {
     if (!editingStudent) return;
 
+    if (!validateIndianPhoneNumber(editingStudent.parentPhone)) {
+      toast.error('Please enter a valid Indian mobile number (10 digits starting with 6-9)');
+      return;
+    }
+
+    const formattedPhone = formatPhoneNumber(editingStudent.parentPhone);
+
     updateStudent(editingStudent.id, {
       name: editingStudent.name,
       class: editingStudent.class,
-      parentPhone: editingStudent.parentPhone,
+      parentPhone: formattedPhone,
       parentName: editingStudent.parentName
     });
 
@@ -89,7 +116,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
           <DialogHeader>
             <DialogTitle>Add New Student</DialogTitle>
             <DialogDescription>
-              Enter student details and parent contact information
+              Enter student details and parent contact information (Indian mobile numbers only)
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -118,14 +145,17 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
               </Select>
             </div>
             <div>
-              <Label htmlFor="parent-phone">Parent's Phone Number *</Label>
+              <Label htmlFor="parent-phone">Parent's Mobile Number * (+91)</Label>
               <Input
                 id="parent-phone"
                 value={newStudent.parentPhone}
                 onChange={(e) => setNewStudent({ ...newStudent, parentPhone: e.target.value })}
-                placeholder="Enter 10-digit phone number"
-                maxLength={10}
+                placeholder="Enter 10-digit mobile number (e.g., 9876543210)"
+                maxLength={13}
               />
+              <p className="text-xs text-muted-foreground mt-1">
+                Indian mobile numbers only (starts with 6-9, +91 will be added automatically)
+              </p>
             </div>
             <div>
               <Label htmlFor="parent-name">Parent's Name</Label>
@@ -184,11 +214,13 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
                 </Select>
               </div>
               <div>
-                <Label htmlFor="edit-parent-phone">Parent's Phone Number</Label>
+                <Label htmlFor="edit-parent-phone">Parent's Mobile Number (+91)</Label>
                 <Input
                   id="edit-parent-phone"
                   value={editingStudent.parentPhone}
                   onChange={(e) => setEditingStudent({ ...editingStudent, parentPhone: e.target.value })}
+                  placeholder="Enter 10-digit mobile number"
+                  maxLength={10}
                 />
               </div>
               <div>
@@ -219,7 +251,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
             <div>
               <CardTitle>Student Records</CardTitle>
               <CardDescription>
-                Manage student information and parent contacts
+                Manage student information and parent contacts (Indian mobile numbers with +91)
               </CardDescription>
             </div>
             <div className="w-64">
