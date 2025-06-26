@@ -1,5 +1,7 @@
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { firebaseService } from '../services/firebaseService';
+import { toast } from 'sonner';
 
 export interface Student {
   id: string;
@@ -21,12 +23,14 @@ export interface Class {
 interface SchoolContextType {
   students: Student[];
   classes: Class[];
-  addStudent: (student: Omit<Student, 'id' | 'dateAdded'>) => void;
-  updateStudent: (id: string, student: Partial<Student>) => void;
-  deleteStudent: (id: string) => void;
+  loading: boolean;
+  addStudent: (student: Omit<Student, 'id' | 'dateAdded'>) => Promise<void>;
+  updateStudent: (id: string, student: Partial<Student>) => Promise<void>;
+  deleteStudent: (id: string) => Promise<void>;
   addClass: (className: string, grade: number) => void;
   getStudentsByClass: (className: string) => Student[];
   seedDatabase: () => void;
+  refreshStudents: () => Promise<void>;
 }
 
 const SchoolContext = createContext<SchoolContextType | undefined>(undefined);
@@ -41,6 +45,7 @@ export const useSchool = () => {
 
 export const SchoolProvider = ({ children }: { children: ReactNode }) => {
   const [students, setStudents] = useState<Student[]>([]);
+  const [loading, setLoading] = useState(false);
   const [classes] = useState<Class[]>([
     { id: '1', name: '1st Standard', grade: 1, studentCount: 0 },
     { id: '2', name: '2nd Standard', grade: 2, studentCount: 0 },
@@ -56,27 +61,77 @@ export const SchoolProvider = ({ children }: { children: ReactNode }) => {
     { id: '12', name: '12th Standard', grade: 12, studentCount: 0 },
   ]);
 
-  const addStudent = (studentData: Omit<Student, 'id' | 'dateAdded'>) => {
-    const newStudent: Student = {
-      ...studentData,
-      id: Date.now().toString(),
-      dateAdded: new Date(),
-    };
-    setStudents(prev => [...prev, newStudent]);
+  // Load students from Firebase on component mount
+  useEffect(() => {
+    refreshStudents();
+  }, []);
+
+  const refreshStudents = async () => {
+    setLoading(true);
+    try {
+      const firebaseStudents = await firebaseService.getAllStudents();
+      setStudents(firebaseStudents);
+    } catch (error) {
+      console.error('Error loading students from Firebase:', error);
+      toast.error('Failed to load students from database');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateStudent = (id: string, studentData: Partial<Student>) => {
-    setStudents(prev => prev.map(student => 
-      student.id === id ? { ...student, ...studentData } : student
-    ));
+  const addStudent = async (studentData: Omit<Student, 'id' | 'dateAdded'>) => {
+    setLoading(true);
+    try {
+      const studentId = await firebaseService.addStudent(studentData);
+      const newStudent: Student = {
+        ...studentData,
+        id: studentId,
+        dateAdded: new Date(),
+      };
+      setStudents(prev => [...prev, newStudent]);
+      toast.success('Student added to Firebase database');
+    } catch (error) {
+      console.error('Error adding student to Firebase:', error);
+      toast.error('Failed to add student to database');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteStudent = (id: string) => {
-    setStudents(prev => prev.filter(student => student.id !== id));
+  const updateStudent = async (id: string, studentData: Partial<Student>) => {
+    setLoading(true);
+    try {
+      await firebaseService.updateStudent(id, studentData);
+      setStudents(prev => prev.map(student => 
+        student.id === id ? { ...student, ...studentData } : student
+      ));
+      toast.success('Student updated in Firebase database');
+    } catch (error) {
+      console.error('Error updating student in Firebase:', error);
+      toast.error('Failed to update student in database');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteStudent = async (id: string) => {
+    setLoading(true);
+    try {
+      await firebaseService.deleteStudent(id);
+      setStudents(prev => prev.filter(student => student.id !== id));
+      toast.success('Student deleted from Firebase database');
+    } catch (error) {
+      console.error('Error deleting student from Firebase:', error);
+      toast.error('Failed to delete student from database');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const addClass = (className: string, grade: number) => {
-    // This would typically add to classes array, but for now classes are fixed
     console.log(`Adding class: ${className}, Grade: ${grade}`);
   };
 
@@ -84,40 +139,60 @@ export const SchoolProvider = ({ children }: { children: ReactNode }) => {
     return students.filter(student => student.class === className);
   };
 
-  const seedDatabase = () => {
-    const sampleStudents: Student[] = [];
-    const phoneNumbers = [
-      '9876543210', '9876543211', '9876543212', '9876543213', '9876543214',
-      '9876543215', '9876543216', '9876543217', '9876543218', '9876543219'
-    ];
+  const seedDatabase = async () => {
+    setLoading(true);
+    try {
+      const sampleStudents = [];
+      const phoneNumbers = [
+        '+91 9876543210', '+91 9876543211', '+91 9876543212', '+91 9876543213', '+91 9876543214',
+        '+91 9876543215', '+91 9876543216', '+91 9876543217', '+91 9876543218', '+91 9876543219'
+      ];
 
-    classes.forEach(classInfo => {
-      for (let i = 1; i <= 10; i++) {
-        sampleStudents.push({
-          id: `${classInfo.id}-${i}`,
-          name: `Student ${classInfo.grade}-${i}`,
-          class: classInfo.name,
-          parentPhone: phoneNumbers[i - 1],
-          parentName: `Parent ${classInfo.grade}-${i}`,
-          rollNumber: `${classInfo.grade}${i.toString().padStart(2, '0')}`,
-          dateAdded: new Date(),
-        });
+      for (const classInfo of classes) {
+        for (let i = 1; i <= 10; i++) {
+          const studentData = {
+            name: `Student ${classInfo.grade}-${i}`,
+            class: classInfo.name,
+            parentPhone: phoneNumbers[i - 1],
+            parentName: `Parent ${classInfo.grade}-${i}`,
+            rollNumber: `${classInfo.grade}${i.toString().padStart(2, '0')}`,
+          };
+          
+          try {
+            await firebaseService.addStudent(studentData);
+            sampleStudents.push({
+              ...studentData,
+              id: `temp-${classInfo.id}-${i}`,
+              dateAdded: new Date(),
+            });
+          } catch (error) {
+            console.error(`Error adding sample student ${classInfo.grade}-${i}:`, error);
+          }
+        }
       }
-    });
 
-    setStudents(sampleStudents);
+      await refreshStudents();
+      toast.success('Sample students added to Firebase database');
+    } catch (error) {
+      console.error('Error seeding Firebase database:', error);
+      toast.error('Failed to seed Firebase database');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SchoolContext.Provider value={{
       students,
       classes,
+      loading,
       addStudent,
       updateStudent,
       deleteStudent,
       addClass,
       getStudentsByClass,
       seedDatabase,
+      refreshStudents,
     }}>
       {children}
     </SchoolContext.Provider>

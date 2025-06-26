@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -8,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table';
-import { Plus, Edit, Trash2, Phone, User } from 'lucide-react';
+import { Plus, Edit, Trash2, Phone, User, Loader2 } from 'lucide-react';
 import { useSchool } from '../contexts/SchoolContext';
 import { toast } from 'sonner';
 
@@ -27,26 +26,20 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
   const [selectedClass, setSelectedClass] = useState('');
   const [editingStudent, setEditingStudent] = useState<any>(null);
 
-  const { students, classes, addStudent, updateStudent, deleteStudent, getStudentsByClass } = useSchool();
+  const { students, classes, loading, addStudent, updateStudent, deleteStudent, getStudentsByClass } = useSchool();
 
   const validateIndianPhoneNumber = (phone: string): boolean => {
-    // Remove +91 prefix if present and any spaces/dashes
     const cleanPhone = phone.replace(/^\+91\s?/, '').replace(/[-\s]/g, '');
-    
-    // Check if it's a valid 10-digit Indian mobile number starting with 6-9
     const phoneRegex = /^[6-9]\d{9}$/;
     return phoneRegex.test(cleanPhone);
   };
 
   const formatPhoneNumber = (phone: string): string => {
-    // Remove +91 prefix if present and any spaces/dashes
     const cleanPhone = phone.replace(/^\+91\s?/, '').replace(/[-\s]/g, '');
-    
-    // Add +91 prefix
     return `+91 ${cleanPhone}`;
   };
 
-  const handleAddStudent = () => {
+  const handleAddStudent = async () => {
     if (!newStudent.name.trim() || !newStudent.class || !newStudent.parentPhone.trim()) {
       toast.error('Please fill in all required fields');
       return;
@@ -59,16 +52,19 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
 
     const formattedPhone = formatPhoneNumber(newStudent.parentPhone);
 
-    addStudent({
-      name: newStudent.name,
-      class: newStudent.class,
-      parentPhone: formattedPhone,
-      parentName: newStudent.parentName || `Parent of ${newStudent.name}`
-    });
+    try {
+      await addStudent({
+        name: newStudent.name,
+        class: newStudent.class,
+        parentPhone: formattedPhone,
+        parentName: newStudent.parentName || `Parent of ${newStudent.name}`
+      });
 
-    setNewStudent({ name: '', class: '', parentPhone: '', parentName: '' });
-    onCloseAddForm();
-    toast.success('Student added successfully with +91 prefix');
+      setNewStudent({ name: '', class: '', parentPhone: '', parentName: '' });
+      onCloseAddForm();
+    } catch (error) {
+      // Error already handled in context
+    }
   };
 
   const handleEditStudent = (student: any) => {
@@ -78,7 +74,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
     });
   };
 
-  const handleUpdateStudent = () => {
+  const handleUpdateStudent = async () => {
     if (!editingStudent) return;
 
     if (!validateIndianPhoneNumber(editingStudent.parentPhone)) {
@@ -88,20 +84,26 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
 
     const formattedPhone = formatPhoneNumber(editingStudent.parentPhone);
 
-    updateStudent(editingStudent.id, {
-      name: editingStudent.name,
-      class: editingStudent.class,
-      parentPhone: formattedPhone,
-      parentName: editingStudent.parentName
-    });
+    try {
+      await updateStudent(editingStudent.id, {
+        name: editingStudent.name,
+        class: editingStudent.class,
+        parentPhone: formattedPhone,
+        parentName: editingStudent.parentName
+      });
 
-    setEditingStudent(null);
-    toast.success('Student updated successfully');
+      setEditingStudent(null);
+    } catch (error) {
+      // Error already handled in context
+    }
   };
 
-  const handleDeleteStudent = (studentId: string) => {
-    deleteStudent(studentId);
-    toast.success('Student deleted successfully');
+  const handleDeleteStudent = async (studentId: string) => {
+    try {
+      await deleteStudent(studentId);
+    } catch (error) {
+      // Error already handled in context
+    }
   };
 
   const displayStudents = selectedClass 
@@ -116,7 +118,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
           <DialogHeader>
             <DialogTitle>Add New Student</DialogTitle>
             <DialogDescription>
-              Enter student details and parent contact information (Indian mobile numbers only)
+              Enter student details and parent contact information (stored in Firebase database)
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -167,9 +169,18 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
               />
             </div>
             <div className="flex gap-2">
-              <Button onClick={handleAddStudent} className="flex-1">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Student
+              <Button onClick={handleAddStudent} className="flex-1" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Adding to Firebase...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Student
+                  </>
+                )}
               </Button>
               <Button variant="outline" onClick={onCloseAddForm} className="flex-1">
                 Cancel
@@ -249,9 +260,9 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Student Records</CardTitle>
+              <CardTitle>Student Records (Firebase Database)</CardTitle>
               <CardDescription>
-                Manage student information and parent contacts (Indian mobile numbers with +91)
+                Manage student information stored in Firebase with Indian mobile numbers (+91)
               </CardDescription>
             </div>
             <div className="w-64">
@@ -272,6 +283,13 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
           </div>
         </CardHeader>
         <CardContent>
+          {loading && (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Loading from Firebase...</span>
+            </div>
+          )}
+          
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -308,6 +326,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEditStudent(student)}
+                          disabled={loading}
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
@@ -315,6 +334,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteStudent(student.id)}
+                          disabled={loading}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -324,9 +344,9 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
                 ))}
               </TableBody>
             </Table>
-            {displayStudents.length === 0 && (
+            {displayStudents.length === 0 && !loading && (
               <div className="text-center py-8 text-muted-foreground">
-                No students found
+                No students found in Firebase database
               </div>
             )}
           </div>
