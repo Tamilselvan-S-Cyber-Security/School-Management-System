@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
@@ -23,7 +24,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
     parentPhone: '',
     parentName: ''
   });
-  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedClass, setSelectedClass] = useState('all');
   const [editingStudent, setEditingStudent] = useState<any>(null);
 
   const { students, classes, loading, addStudent, updateStudent, deleteStudent, getStudentsByClass } = useSchool();
@@ -106,9 +107,9 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
     }
   };
 
-  const displayStudents = selectedClass 
-    ? getStudentsByClass(selectedClass) 
-    : students;
+  const displayStudents = selectedClass === 'all' 
+    ? students 
+    : getStudentsByClass(selectedClass);
 
   return (
     <div className="space-y-6">
@@ -271,7 +272,7 @@ const StudentManagement = ({ showAddForm, onCloseAddForm }: StudentManagementPro
                   <SelectValue placeholder="Filter by class" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Classes</SelectItem>
+                  <SelectItem value="all">All Classes</SelectItem>
                   {classes.map((classInfo) => (
                     <SelectItem key={classInfo.id} value={classInfo.name}>
                       {classInfo.name}
