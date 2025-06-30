@@ -1,9 +1,7 @@
-# Welcome to your Lovable project
-
+# Welcome to School management System 
 
 ## What technologies are used for this project?
 
-This project is built with .
 
 - Vite
 - TypeScript
@@ -11,3 +9,4 @@ This project is built with .
 - shadcn-ui
 - Tailwind CSS
 
+**The  project devloped BY S.Tamilselvan**
